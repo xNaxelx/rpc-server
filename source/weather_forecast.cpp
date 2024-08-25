@@ -26,10 +26,10 @@ WeatherForecast::WeatherForecast(QObject* parent)
         this, &WeatherForecast::onWeatherReplyFinished);
 }
 
-void WeatherForecast::getWeather(const QString& city)
+void WeatherForecast::getWeather(const QString& city, const QString& requestId)
 {
     if (m_apiKey.isEmpty()) {
-        emit errorOccurred("API key is not set");
+        emit errorOccurred("API key is not set", requestId);
         return;
     }
 
@@ -37,22 +37,37 @@ void WeatherForecast::getWeather(const QString& city)
     QUrlQuery query;
     query.addQueryItem("q", city);
     query.addQueryItem("appid", m_apiKey);
-    query.addQueryItem("units", "metric");  // Выбор единиц измерения температуры
+    query.addQueryItem("units", "metric");
     url.setQuery(query);
 
     QNetworkRequest request(url);
+    // Передаем идентификатор запроса в slot
     m_networkAccessManager.get(request);
+    connect(&m_networkAccessManager, &QNetworkAccessManager::finished, [this, requestId](QNetworkReply* reply) {
+        if (reply) {
+            if (reply->error() == QNetworkReply::NoError) {
+                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+                emit weatherUpdated(doc.object(), requestId);
+            }
+            else {
+                emit errorOccurred(reply->errorString(), requestId);
+            }
+            reply->deleteLater();
+        }
+        });
 }
+
 
 void WeatherForecast::onWeatherReplyFinished(QNetworkReply* reply)
 {
     if (reply) {
+        QString requestId = reply->request().attribute(QNetworkRequest::CustomVerbAttribute).toString();
         if (reply->error() == QNetworkReply::NoError) {
             QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-            emit weatherUpdated(doc.object());
+            emit weatherUpdated(doc.object(), requestId);
         }
         else {
-            emit errorOccurred(reply->errorString());
+            emit errorOccurred(reply->errorString(), requestId);
         }
         reply->deleteLater();
     }

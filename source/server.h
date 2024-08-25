@@ -22,7 +22,6 @@ public:
 
 private slots:
     void onNewConnection();
-    void onMessageReceived(const QString& message);
     void onSocketDisconnected();
     void handleWeatherUpdate(const QJsonObject& weatherData);
     void handleWeatherError(const QString& error);
@@ -37,8 +36,9 @@ private:
     QStringList m_availableMethods;
 
     void loadData();
-    void saveData();
-    void handleRequest(const QJsonObject& request, QWebSocket* socket);
+    void saveData(); 
+    void handleRequest(const QString& requestString);
+    QJsonObject processRequest(const QJsonObject& request);
 };
 
 #endif // MYSERVER_H

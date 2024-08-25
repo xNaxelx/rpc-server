@@ -45,28 +45,49 @@ void Server::onNewConnection()
 {
     QWebSocket* socket = m_server->nextPendingConnection();
     connect(socket, &QWebSocket::textMessageReceived,
-        this, &Server::onMessageReceived);
+        this, &Server::handleRequest);
     connect(socket, &QWebSocket::disconnected,
         this, &Server::onSocketDisconnected);
     m_clients.append(socket);
 }
 
-void Server::onMessageReceived(const QString& message)
+void Server::handleRequest(const QString& requestString)
 {
-    QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
-    if (!doc.isObject()) {
-        qDebug() << "Invalid JSON";
-        return;
-    }
-
-    QJsonObject request = doc.object();
     QWebSocket* socket = qobject_cast<QWebSocket*>(sender());
-    if (socket) {
-        handleRequest(request, socket);
+    QJsonDocument requestDoc = QJsonDocument::fromJson(requestString.toUtf8());
+    if (requestDoc.isArray()) {
+        // Обработка batch-запроса
+        QJsonArray requests = requestDoc.array();
+        QJsonArray responses;
+        for (const QJsonValue& value : requests) {
+            if (value.isObject()) {
+                QJsonObject request = value.toObject();
+                QJsonObject response = processRequest(request);
+                responses.append(response);
+            }
+        }
+        QJsonDocument responseDoc(responses);
+        socket->sendTextMessage(responseDoc.toJson(QJsonDocument::Compact));
+    }
+    else if (requestDoc.isObject()) {
+        // Обработка одиночного запроса
+        QJsonObject request = requestDoc.object();
+        QJsonObject response = processRequest(request);
+        QJsonDocument responseDoc(response);
+        socket->sendTextMessage(responseDoc.toJson(QJsonDocument::Compact));
+    }
+    else {
+        // Неверный формат запроса
+        QJsonObject errorResponse;
+        errorResponse["jsonrpc"] = "2.0";
+        errorResponse["error"] = QJsonObject{ {"code", -32700}, {"message", "Parse error"} };
+        errorResponse["id"] = QJsonValue::Null;
+        QJsonDocument responseDoc(errorResponse);
+        socket->sendTextMessage(responseDoc.toJson(QJsonDocument::Compact));
     }
 }
 
-void Server::handleRequest(const QJsonObject& request, QWebSocket* socket)
+QJsonObject Server::processRequest(const QJsonObject& request)
 {
     QString method = request["method"].toString();
     QJsonObject params = request["params"].toObject();
@@ -156,16 +177,17 @@ void Server::handleRequest(const QJsonObject& request, QWebSocket* socket)
         }
         else if (method == "getWeather") {
             QString city = params["city"].toString();
-            m_weatherForecast->getWeather(city);
-            // Отправка ответа будет выполнена через сигнал, когда данные будут получены
-            /*response["jsonrpc"] = "2.0";
+            QString id = request["id"].toString();
+            // Устанавливаем идентификатор запроса
+            response["jsonrpc"] = "2.0";
             response["result"] = "Weather request sent";
-            response["id"] = request["id"];*/
+            response["id"] = id;
+            m_weatherForecast->getWeather(city, id);  // Передаем идентификатор
+            return response;  // Возвращаем ответ сразу, чтобы обработка batch-запросов продолжалась
         }
     }
 
-    QJsonDocument responseDoc(response);
-    socket->sendTextMessage(responseDoc.toJson(QJsonDocument::Compact));
+    return response;
 }
 
 void Server::handleWeatherUpdate(const QJsonObject& weatherData)

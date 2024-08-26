@@ -12,11 +12,11 @@ class WeatherForecast : public QObject
 public:
     explicit WeatherForecast(QObject* parent = nullptr);
 
-    void getWeather(const QString& city, const QString& requestId);
+    void getWeather(const QString& city);
 
 signals:
-    void weatherUpdated(const QJsonObject& weatherData, const QString& requestId);
-    void errorOccurred(const QString& error, const QString& requestId);
+    void weatherUpdated(const QJsonObject& weatherData);
+    void errorOccurred(const QString& error);
 
 private slots:
     void onWeatherReplyFinished(QNetworkReply* reply);

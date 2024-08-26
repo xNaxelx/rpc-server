@@ -35,8 +35,6 @@ private:
 
     QStringList m_availableMethods;
 
-    void loadData();
-    void saveData(); 
     void handleRequest(const QString& requestString);
     QJsonObject processRequest(const QJsonObject& request);
 };

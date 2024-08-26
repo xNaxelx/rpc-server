@@ -21,13 +21,10 @@ Server::Server()
         this, &Server::handleWeatherUpdate);
     connect(m_weatherForecast, &WeatherForecast::errorOccurred,
         this, &Server::handleWeatherError);
-
-    loadData();
 }
 
 Server::~Server()
 {
-    saveData();
     qDeleteAll(m_clients.begin(), m_clients.end());
 }
 
@@ -182,7 +179,7 @@ QJsonObject Server::processRequest(const QJsonObject& request)
             response["jsonrpc"] = "2.0";
             response["result"] = "Weather request sent";
             response["id"] = id;
-            m_weatherForecast->getWeather(city, id);  // Передаем идентификатор
+            m_weatherForecast->getWeather(city);  // Передаем идентификатор
             return response;  // Возвращаем ответ сразу, чтобы обработка batch-запросов продолжалась
         }
     }

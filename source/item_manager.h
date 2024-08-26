@@ -5,6 +5,8 @@
 #include <QJsonArray>
 #include <QMap>
 #include <QString>
+#include <QFile>
+#include <QJsonDocument>
 #include "item.h"
 
 class ItemManager : public QObject
@@ -25,6 +27,9 @@ signals:
     void itemUpdated(const QString& id, const QJsonObject& properties);
 
 private:
+    void loadItemsFromFile();
+    void saveItemsToFile() const;
+
     QMap<QString, Item*> m_items;
 };
 

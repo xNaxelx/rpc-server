@@ -2,6 +2,7 @@
 
 ItemManager::ItemManager(QObject* parent) : QObject(parent)
 {
+    loadItemsFromFile();
 }
 
 QJsonArray ItemManager::getAllItems() const
@@ -23,6 +24,7 @@ void ItemManager::addItem(Item* item)
     if (!m_items.contains(item->id())) {
         m_items[item->id()] = item;
         emit itemAdded(item);
+        saveItemsToFile();
     }
 }
 
@@ -32,6 +34,7 @@ void ItemManager::removeItem(const QString& id)
         Item* item = m_items.take(id);
         emit itemRemoved(id);
         delete item;
+        saveItemsToFile();
     }
 }
 
@@ -43,5 +46,37 @@ void ItemManager::updateItem(const QString& id, const QJsonObject& properties)
             item->setProperty(it.key(), it.value().toVariant());
         }
         emit itemUpdated(id, properties);
+        saveItemsToFile();
+    }
+}
+
+void ItemManager::loadItemsFromFile()
+{
+    QFile file("items.json");
+    if (file.open(QIODevice::ReadOnly)) {
+        QByteArray data = file.readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+        QJsonArray array = doc.array();
+        for (const QJsonValue& value : array) {
+            QJsonObject obj = value.toObject();
+            Item* item = new Item(obj["id"].toString());
+            item->fromJson(obj);
+            m_items[item->id()] = item;
+        }
+        file.close();
+    }
+}
+
+void ItemManager::saveItemsToFile() const
+{
+    QFile file("items.json");
+    if (file.open(QIODevice::WriteOnly)) {
+        QJsonArray array;
+        for (auto it = m_items.begin(); it != m_items.end(); ++it) {
+            array.append(it.value()->toJson());
+        }
+        QJsonDocument doc(array);
+        file.write(doc.toJson());
+        file.close();
     }
 }

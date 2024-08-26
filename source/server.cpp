@@ -218,30 +218,3 @@ void Server::onSocketDisconnected()
         socket->deleteLater();
     }
 }
-
-void Server::loadData()
-{
-    QFile file("data.json");
-    if (file.open(QIODevice::ReadOnly)) {
-        QByteArray data = file.readAll();
-        QJsonDocument doc = QJsonDocument::fromJson(data);
-        if (doc.isArray()) {
-            QJsonArray array = doc.array();
-            for (const QJsonValue& value : array) {
-                QJsonObject json = value.toObject();
-                Item* item = new Item(json["id"].toString());
-                item->fromJson(json);
-                m_itemManager.addItem(item);
-            }
-        }
-    }
-}
-
-void Server::saveData()
-{
-    QFile file("data.json");
-    if (file.open(QIODevice::WriteOnly)) {
-        QJsonDocument doc(m_itemManager.getAllItems());
-        file.write(doc.toJson(QJsonDocument::Compact));
-    }
-}
